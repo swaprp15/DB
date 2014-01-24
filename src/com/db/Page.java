@@ -6,7 +6,7 @@ public class Page {
 	private int endRecordId = 0;
 	private long globalPageNo = 0;
 	private int internalPageNo = 0;
-	//private int frameNo = -1;
+	private long frameNo = -1;
 	
 	private boolean isInMemory = false;
 
@@ -46,12 +46,12 @@ public class Page {
 	public void setGlobalPageNo(long globalPageNo2) {
 		this.globalPageNo = globalPageNo2;
 	}
-	/*public int getFrameNo() {
+	public long getFrameNo() {
 		return frameNo;
 	}
-	public void setFrameNo(int frameNo) {
+	public void setFrameNo(long frameNo) {
 		this.frameNo = frameNo;
-	}*/
+	}
 	
 	@Override
 	public String toString(){

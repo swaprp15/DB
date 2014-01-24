@@ -10,6 +10,10 @@ import java.util.LinkedHashMap;
 
 public class DBSystem 
 {
+	// I guess need to start from 0
+	// Keep a list of free frames
+	// Change logical number to 0-1023
+	
 	private long globalPageNo = 1;
 	
 	private ConfigReader configReader;
@@ -174,6 +178,14 @@ public class DBSystem
 		
 		// Get record.
 		
-		return cache.GetRecord(globalPageId, recordId - requiredLogicalPage.getStartRecordId());
+		return cache.GetRecord(requiredLogicalPage.getFrameNo(), recordId - requiredLogicalPage.getStartRecordId());
+	}
+
+	public void insertRecord(String tableName, String record)
+	{
+		LinkedHashMap<Long, Page> table = PageStore.GetPageTable(tableName);
+		
+		table.size();
+		//table.entrySet().
 	}
 }

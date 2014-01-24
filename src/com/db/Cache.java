@@ -2,9 +2,11 @@ package com.db;
 
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -12,11 +14,14 @@ import java.util.logging.Logger;
 class LRUCache extends LinkedHashMap<Long, Frame>
 {
 	public static int MAX_ENTRIES;
+	public long lastRemovedFrameNumber;
 	
 	public LRUCache(int maxEntries)
 	{
 		super(MAX_ENTRIES, (float) 1.0, true);
 		MAX_ENTRIES = maxEntries;
+		
+		lastRemovedFrameNumber = 0;
 	}
 	
 	@Override
@@ -24,6 +29,11 @@ class LRUCache extends LinkedHashMap<Long, Frame>
 	{
 		if(size() > MAX_ENTRIES)
 		{
+			lastRemovedFrameNumber = eldest.getKey();
+			
+			// Add this frame to free list
+			Cache.freeFrames.add(lastRemovedFrameNumber);
+			
 			// Should set isInMemory false.
 			Frame frame = eldest.getValue();
 			
@@ -33,14 +43,14 @@ class LRUCache extends LinkedHashMap<Long, Frame>
 			try
 			{
 				PageStore.GetPageTable(tableName).get(logicalPageId).setInMemory(false);
-			
-				System.out.println("Removed. Now is in memory?? - " + (PageStore.GetPageTable(tableName).get(logicalPageId).isInMemory() ? "Yes" : "No"));
 			}
 			catch(Exception e)
 			{
-				System.out.println("Error");
+				// Use logger
 			}
-			System.out.println("MISS - Removed page : " + eldest.getKey());
+			
+			// Check what should be the message.
+			System.out.println("MISS - Removed page : " + lastRemovedFrameNumber);
 			
 			return true;
 		}
@@ -49,9 +59,11 @@ class LRUCache extends LinkedHashMap<Long, Frame>
 	}
 	
 }
+
 public class Cache{
 	
 	private LRUCache cache;
+	public static Set<Long> freeFrames;
 	
 	private final Logger logger = Logger.getLogger(ConfigReader.class.getName());
 	
@@ -61,6 +73,10 @@ public class Cache{
 		
 		logger.setLevel(Level.INFO);
 		
+		freeFrames = new HashSet<Long>();
+		
+		for(long i = 0; i < ConfigReader.getNumberOfPages(); i++)
+			freeFrames.add(i);
 	}
 	
 	public String GetRecord(long globalPageId, int offset)
@@ -109,9 +125,32 @@ public class Cache{
 			frame.setData(list);
 			frame.setSize(size);
 			
-			cache.put(globalPageId, frame);
+			long frameNumber;
 			
-			logger.info("Inserted page " + globalPageId + " in cache");
+			if(freeFrames.iterator().hasNext())
+			{
+				frameNumber = freeFrames.iterator().next();
+				cache.put(frameNumber, frame);
+			}
+			else
+			{
+				// Add a dummy entry.
+				
+				cache.put((long)LRUCache.MAX_ENTRIES, null);
+				cache.remove((long)LRUCache.MAX_ENTRIES);
+				cache.put(cache.lastRemovedFrameNumber, frame);
+				frameNumber = cache.lastRemovedFrameNumber;
+			}
+			
+			freeFrames.remove(frameNumber);
+			
+			// Set frame number for the page.
+			PageStore.GetPageTable(tableName).get(logicalPageId).setFrameNo(frameNumber);
+			
+			// Remove this and add logger..
+			System.out.println("Inserted page " + logicalPageId + " of table " + tableName + " in cache frame " + frameNumber);
+			
+			//logger.info("Inserted page " + logicalPageId + " of table " + tableName + " in cache frame " + frameNumber);
 		}
 		catch(Exception e)
 		{
